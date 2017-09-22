@@ -40,7 +40,7 @@ roi_name = gt_15_classes.nii.gz
 save_tmp = True
 ```
 
-Unless the model `name` and the training mode `mode`, the rest of parameters work well in most of the situations with default parameters.  
+Except for the model `name` and the training mode `mode`, the rest of parameters work well in most of the situations with default parameters.  
 
 ```python
 [model]
