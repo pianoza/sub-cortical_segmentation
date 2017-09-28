@@ -11,12 +11,12 @@ from lasagne import objectives, updates
 from nolearn.lasagne.handlers import SaveWeights
 import lasagne
 import theano as T
+
 from lasagne.layers import InputLayer, DenseLayer, DropoutLayer, FeaturePoolLayer, LocalResponseNormalization2DLayer, BatchNormLayer, prelu, ConcatLayer, ElemwiseSumLayer, ExpressionLayer, PadLayer, ScaleLayer
 from lasagne.layers import Conv3DLayer, MaxPool3DLayer, Conv2DLayer, MaxPool2DLayer, Pool3DLayer, batch_norm
 from lasagne.nonlinearities import softmax, rectify
 nib.Nifti1Header.quaternion_threshold = -np.finfo(np.float32).eps * 10
 from datetime import datetime
-
 
 def float32(k):
         return np.cast['float32'](k)
@@ -219,10 +219,7 @@ def build_model(weights_path, options):
     
     # concatenate channels 540 + 15
     layer = DropoutLayer(layer, name = 'f2_drop', p = dropout_fc)        
-    atlas_layer = DropoutLayer(InputLayer(name='in4', shape=(None, 15)), name = 'Dropout_atlas', p = .2)
-    atlas_layer = InputLayer(name='in4', shape=(None, 15))
-    layer = ConcatLayer(name = 'elem_channels2', incomings = [layer, atlas_layer])
-    
+
     # FC layer 270
     layer = DenseLayer(layer, name='fc_2', num_units = 270)
     layer = prelu(layer, name = 'prelu_f2')

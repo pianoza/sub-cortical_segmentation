@@ -32,17 +32,16 @@ options = load_options(user_config)
 from cnn_cort.base import load_data, generate_training_set, load_test_names, test_scan
 from cnn_cort.nets import build_model
 
-'''
+# '''
 # get data patches from all orthogonal views 
-x_axial, x_cor, x_sag, y, x_atlas, names = load_data(options)
+x_axial, x_cor, x_sag, y, names = load_data(options)
 
 # build the training dataset
-x_train_axial, x_train_cor, x_train_sag, x_train_atlas, y_train = generate_training_set(x_axial,
-                                                                                        x_cor,
-                                                                                        x_sag,
-                                                                                        x_atlas,
-                                                                                        y,
-                                                                                        options)
+x_train_axial, x_train_cor, x_train_sag, y_train = generate_training_set(x_axial,
+                                                                         x_cor,
+                                                                         x_sag,
+                                                                         y,
+                                                                         options)
 
 # --------------------------------------------------
 # build the net model
@@ -56,10 +55,9 @@ net = build_model(weights_path, options)
 # --------------------------------------------------
 net.fit({'in1': x_train_axial,
          'in2': x_train_cor,
-         'in3': x_train_sag,
-         'in4': x_train_atlas}, y_train)
+         'in3': x_train_sag}, y_train)
 
-'''
+# '''
 # --------------------------------------------------
 # test the model (for each scan)
 # --------------------------------------------------

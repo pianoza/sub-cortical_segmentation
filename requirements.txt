@@ -6,7 +6,6 @@ gdbn==0.1
 gnumpy==0.2
 h5py==2.7.1
 joblib==0.11
-Lasagne==0.2.dev1
 Mako==1.0.6
 MarkupSafe==1.0
 matplotlib==2.0.2
@@ -18,8 +17,6 @@ nolearn-utils==0.2.2
 numpy==1.12.1
 olefile==0.44
 Pillow==4.1.1
-pkg-resources==0.0.0
-pygpu==0.6.5
 pyparsing==2.2.0
 python-dateutil==2.6.0
 pytz==2017.2
@@ -30,4 +27,3 @@ scipy==0.19.0
 six==1.10.0
 subprocess32==3.2.7
 tabulate==0.7.7
-Theano==0.9.0
