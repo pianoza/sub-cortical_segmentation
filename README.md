@@ -1,6 +1,6 @@
-# Sub-cortical brain tissue segmentation of MRI
+# Sub-cortical brain structure segmentation of MRI
 
-Subcortical brain tissue segmentation of MRI images using a combination of convolutional and a-priori spatial feautures. An electronic prepint of the method is available here: [https://arxiv.org/abs/1709.09075](https://arxiv.org/abs/1709.09075)
+Subcortical brain structure segmentation of MRI images using a combination of convolutional and a-priori spatial feautures. An electronic prepint of the method is available here: [https://arxiv.org/abs/1709.09075](https://arxiv.org/abs/1709.09075)
 
 
 ## Overview: 
