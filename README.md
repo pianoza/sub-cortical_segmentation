@@ -12,8 +12,8 @@ This repository implements a voxelwise convolutional neural network based approa
 Contrary to other available works, the proposed network is trained using a restricted sample selection to force the network to learn only the most challenging voxels from structure boundaries. For more information about the method of the evaluation performed, please see the related publication. 
 
 ## Coming soon:
-A transfer learning pipeline for sub-cortical structure segmentation.
-
+- Keras implementation of the method
+- Transfer learning pipeline for sub-cortical structure segmentation
 
 # Install:
 
