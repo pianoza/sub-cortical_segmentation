@@ -1,7 +1,6 @@
 # Sub-cortical brain structure segmentation of MRI
 
-Subcortical brain structure segmentation of MRI images using a combination of convolutional and a-priori spatial feautures. An electronic prepint of the method is available here: [https://arxiv.org/abs/1709.09075](https://arxiv.org/abs/1709.09075)
-
+Subcortical brain structure segmentation of MRI images using a combination of convolutional and a-priori spatial feautures. Related paper of the method is available here: [https://www.medicalimageanalysisjournal.com/article/S1361-8415(18)30383-9/abstract](https://www.medicalimageanalysisjournal.com/article/S1361-8415(18)30383-9/abstract)
 
 ## Overview: 
 
@@ -11,6 +10,9 @@ This repository implements a voxelwise convolutional neural network based approa
 
 
 Contrary to other available works, the proposed network is trained using a restricted sample selection to force the network to learn only the most challenging voxels from structure boundaries. For more information about the method of the evaluation performed, please see the related publication. 
+
+## Coming soon:
+A transfer learning pipeline for sub-cortical structure segmentation.
 
 
 # Install:
@@ -185,23 +187,19 @@ The next figure depicts an output example, where the first image shows the outpu
 
 + The current method would only work on GNU/Linux 64bit systems. We deal with image registration between spatial atlases and T1-w inside the training routines. So far, image registration is done using included binaries for [NiftiReg](http://niftyreg.sourceforge.net/) which have been compiled for GNU/Linux 64 bits. _We are working to move the method to Docker containers._
 
-
 # Citing this work:
 
 Please cite this work as:
 
 ```
-@article{Kushibar2017,
-abstract = {Sub-cortical brain structure segmentation in Magnetic Resonance Images (MRI) has attracted the interest of the research community for a long time because morphological changes in these structures are related to different neurodegenerative disorders. However, manual segmentation of these structures can be tedious and prone to variability, highlighting the need for robust automated segmentation methods. In this paper, we present a novel convolutional neural network based approach for accurate segmentation of the sub-cortical brain structures that combines both convolutional and prior spatial features for improving the segmentation accuracy. In order to increase the accuracy of the automated segmentation, we propose to train the network using a restricted sample selection to force the network to learn the most difficult parts of the structures. We evaluate the accuracy of the proposed method on the public MICCAI 2012 challenge and IBSR 18 datasets, comparing it with different available state-of-the-art methods and other recently proposed deep learning approaches. On the MICCAI 2012 dataset, our method shows an excellent performance comparable to the best challenge participant strategy, while performing significantly better than state-of-the-art techniques such as FreeSurfer and FIRST. On the IBSR 18 dataset, our method also exhibits a significant increase in the performance with respect to not only FreeSurfer and FIRST, but also comparable or better results than other recent deep learning approaches. Moreover, our experiments show that both the addition of the spatial priors and the restricted sampling strategy have a significant effect on the accuracy of the proposed method. In order to encourage the reproducibility and the use of the proposed method, a public version of our approach is available to download for the neuroimaging community.},
-archivePrefix = {arXiv},
-arxivId = {1709.09075},
-author = {Kushibar, Kaisar and Valverde, Sergi and Gonzalez-Villa, Sandra and Bernal, Jose and Cabezas, Mariano and Oliver, Arnau and Llado, Xavier},
-eprint = {1709.09075},
-file = {:home/kaisar/Documents/MTReadings/1709.09075.pdf:pdf},
-keywords = {brain,convolutional neural networks,mri,segmentation,sub-cortical structures},
-title = {{Automated sub-cortical brain structure segmentation combining spatial and deep convolutional features}},
-url = {http://arxiv.org/abs/1709.09075},
-year = {2017}
+@article{kushibar2018automated,
+  title={Automated sub-cortical brain structure segmentation combining spatial and deep convolutional features},
+  author={Kushibar, Kaisar and Valverde, Sergi and Gonz{\'a}lez-Vill{\`a}, Sandra and Bernal, Jose and Cabezas, Mariano and Oliver, Arnau and Llad{\'o}, Xavier},
+  journal={Medical image analysis},
+  volume={48},
+  pages={177--186},
+  year={2018},
+  publisher={Elsevier}
 } 
 ```
 
