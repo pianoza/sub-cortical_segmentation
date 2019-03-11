@@ -30,6 +30,7 @@ def load_options(user_config):
     options['roi_name'] = user_config.get('database', 'roi_name')
     options['out_name'] = 'out_seg.nii.gz'
     options['save_tmp'] = user_config.get('database', 'save_tmp')
+    options['subfolder'] = user_config.get('database', 'subfolder')
     exp_folder = None 
 
     # net options

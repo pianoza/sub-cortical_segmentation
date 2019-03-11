@@ -65,7 +65,7 @@ net.fit({'in1': x_train_axial,
 # --------------------------------------------------
 
 # get the testing image paths
-t1_test_paths, folder_names  = load_test_names(options)
+t1_test_paths, folder_names = load_test_names(options)
 
 # reload the network weights and build it 
 weights_path = os.path.join(CURRENT_PATH, 'nets')
@@ -76,8 +76,4 @@ net = build_model(weights_path, options)
 for t1, current_scan in zip(t1_test_paths, folder_names):
     t = test_scan(net, t1, options)
     print "    -->  tested subject :", current_scan, "(elapsed time:", t, "min.)"
-
-
-    
-    
 

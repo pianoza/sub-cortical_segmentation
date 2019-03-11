@@ -30,6 +30,7 @@ def load_data(options):
       - image names 
     """
     (x_axial, y_axial, x_cor, y_cor, x_sag, y_sag, x_atlas, names) = load_patches(dir_name=options['train_folder'],
+                                                                                  subfolder = options['subfolder'],
                                                                                   t1_name=options['t1_name'],
                                                                                   mask_name=options['roi_name'],
                                                                                   size=tuple(options['patch_size']))
@@ -37,20 +38,31 @@ def load_data(options):
     return x_axial, x_cor, x_sag, y_axial, x_atlas, names
 
 
-
 def load_test_names(options):
     """
     Load image names. Extract names from folders and return a list. 
     """
     dir_name = options['test_folder']
+    subfolder = options['subfolder']
+
+    subjects = [f for f in sorted(os.listdir(dir_name)) if os.path.isdir(os.path.join(dir_name, f))]
+    image_names = [os.path.join(dir_name, subject, 'T1_kk.nii.gz') for subject in subjects]
+
+    # Backward register all the images to the MNI space if not done yet
+    for image_name, subject in zip(image_names, subjects):
+        if os.path.exists(os.path.join(dir_name, subject, subfolder, 'rT1d_template.nii.gz')) is False:
+            print "--> Initial registration for subject " + image_name
+            t = register_masks_backward(image_name, testing=True)
+            print "(elapsed time ", t / 60.0, "min.)"
+    dir_name = options['test_folder']
     t1_name = options['t1_name']
     subjects = [f for f in sorted(os.listdir(dir_name)) if os.path.isdir(os.path.join(dir_name, f))]
     t1_names = [os.path.join(dir_name, subject, t1_name) for subject in subjects]
-        
+
     return t1_names, subjects
 
 
-def generate_training_set(x_axial, x_coronal, x_saggital, x_atlas, y, options, randomize = True):
+def generate_training_set(x_axial, x_coronal, x_saggital, x_atlas, y, options, randomize=True):
     """
     Generate training features X an Y for each image modality. 
    
@@ -76,8 +88,8 @@ def generate_training_set(x_axial, x_coronal, x_saggital, x_atlas, y, options, r
 
     # concatenate scans for training 
     x_train_axial = np.concatenate(x_axial, axis = 0).astype('float32')
-    x_train_cor =   np.concatenate(x_coronal, axis = 0).astype('float32')
-    x_train_sag =   np.concatenate(x_saggital, axis = 0).astype('float32')
+    x_train_cor   = np.concatenate(x_coronal, axis = 0).astype('float32')
+    x_train_sag   = np.concatenate(x_saggital, axis = 0).astype('float32')
     x_train_atlas = np.concatenate(x_atlas, axis = 0).astype('float32')
     y_train = np.concatenate(y, axis = 0).astype('uint8')
     
@@ -102,7 +114,6 @@ def generate_training_set(x_axial, x_coronal, x_saggital, x_atlas, y, options, r
         np.random.seed(seed)
         x_train_atlas = np.random.permutation(x_train_atlas)
     
-
     # The net expects training data with shape [samples, channels, p1, p2]
     # reshape arrays for single channel
     x_train_axial = np.expand_dims(x_train_axial, axis = 1)
@@ -117,7 +128,7 @@ def generate_training_set(x_axial, x_coronal, x_saggital, x_atlas, y, options, r
     return x_train_axial, x_train_cor, x_train_sag, x_train_atlas, y_train
 
 
-def load_patch_vectors(name, label_name, dir_name, size, random_state=42, balance_neg = True):
+def load_patch_vectors(name, subfolder, label_name, dir_name, size, random_state=42, balance_neg = True):
     """
     Generate all patch vectors for all subjects and one sequence (name). This is done for each image view (axial, coronal and axial)
     In subcortical brain tissue segmentation, I am extracting all positive class voxels (classes from 1 to 14) and the same number of
@@ -138,39 +149,48 @@ def load_patch_vectors(name, label_name, dir_name, size, random_state=42, balanc
     - vox_positions: voxel coordinates for each of the patches [image_num, x, y, z]
     - image names 
     """
-    
+
     # Get the names of the images and load them and normalize images
+
     subjects = [f for f in sorted(os.listdir(dir_name)) if os.path.isdir(os.path.join(dir_name, f))]
-    image_names = [os.path.join(dir_name, subject, name) for subject in subjects]
+    image_names = [os.path.join(dir_name, subject, 'T1_kk.nii.gz') for subject in subjects]
+
+    # Backward register all the images to the MNI space if not done yet
+    for image_name, subject in zip(image_names, subjects):
+        if os.path.exists(os.path.join(dir_name, subject, subfolder, 'rT1d_template.nii.gz')) is False:
+            print "--> Initial registration for subject " + image_name
+            t = register_masks_backward(image_name)
+            print "(elapsed time ", t / 60.0, "min.)"
+
+    image_names = [os.path.join(dir_name, subject, subfolder, name) for subject in subjects]
     images = [load_nii(name).get_data() for name in image_names] 
     images_norm = [(im.astype(np.float32) - im[np.nonzero(im)].mean()) / im[np.nonzero(im)].std() for im in images]
     
     # load labels 
-    label_names = [os.path.join(dir_name, subject, label_name) for subject in subjects]
+    label_names = [os.path.join(dir_name, subject, subfolder, label_name) for subject in subjects]
     labels = [load_nii(name).get_data() for name in label_names]
 
-    
-    # positive classes (not background) classes between 1 and 14 
-    p_vox_coord_pos = [get_mask_voxels(np.logical_and(mask>0, mask < 15)) for mask in labels]
-    axial_x_pos_patches = [np.array(get_patches(image, centers, size, mode = 'axial')) for image, centers in zip(images_norm,  p_vox_coord_pos)]
-    axial_y_pos_patches = [np.array(get_patches(image, centers, size, mode = 'axial')) for image, centers in zip(labels, p_vox_coord_pos)]
-    cor_x_pos_patches = [np.array(get_patches(image, centers, size, mode = 'coronal')) for image, centers in zip(images_norm,  p_vox_coord_pos)]
-    cor_y_pos_patches = [np.array(get_patches(image, centers, size, mode = 'coronal')) for image, centers in zip(labels, p_vox_coord_pos)]
-    sag_x_pos_patches = [np.array(get_patches(image, centers, size, mode = 'saggital')) for image, centers in zip(images_norm,  p_vox_coord_pos)]
-    sag_y_pos_patches = [np.array(get_patches(image, centers, size, mode = 'saggital')) for image, centers in zip(labels, p_vox_coord_pos)]
+    # positive classes (not background) classes between 1 and 14
+    p_vox_coord_pos = [get_mask_voxels(np.logical_and(mask > 0, mask < 15)) for mask in labels]
+    axial_x_pos_patches = [np.array(get_patches(image, centers, size, mode='axial')) for image, centers in zip(images_norm,  p_vox_coord_pos)]
+    axial_y_pos_patches = [np.array(get_patches(image, centers, size, mode='axial')) for image, centers in zip(labels, p_vox_coord_pos)]
+    cor_x_pos_patches = [np.array(get_patches(image, centers, size, mode='coronal')) for image, centers in zip(images_norm,  p_vox_coord_pos)]
+    cor_y_pos_patches = [np.array(get_patches(image, centers, size, mode='coronal')) for image, centers in zip(labels, p_vox_coord_pos)]
+    sag_x_pos_patches = [np.array(get_patches(image, centers, size, mode='saggital')) for image, centers in zip(images_norm,  p_vox_coord_pos)]
+    sag_y_pos_patches = [np.array(get_patches(image, centers, size, mode='saggital')) for image, centers in zip(labels, p_vox_coord_pos)]
     
     # all negative are taken, as the GT includes only boundary voxels only
-    if balance_neg == True:
-        n_vox_coord_pos = [get_mask_voxels(mask==15,  size=len(p)) for mask, p in zip(labels, p_vox_coord_pos)]
+    if balance_neg:
+        n_vox_coord_pos = [get_mask_voxels(mask == 15,  size=len(p)) for mask, p in zip(labels, p_vox_coord_pos)]
     else:
-        n_vox_coord_pos = [get_mask_voxels(mask==15) for mask, p in zip(labels, p_vox_coord_pos)]
+        n_vox_coord_pos = [get_mask_voxels(mask == 15) for mask, p in zip(labels, p_vox_coord_pos)]
 
-    axial_x_neg_patches = [np.array(get_patches(image, centers, size, mode = 'axial')) for image, centers in zip(images_norm, n_vox_coord_pos)]
-    axial_y_neg_patches = [np.array(get_patches(image, centers, size, mode = 'axial')) for image, centers in zip(labels, n_vox_coord_pos)]
-    cor_x_neg_patches = [np.array(get_patches(image, centers, size, mode = 'coronal')) for image, centers in zip(images_norm, n_vox_coord_pos)]
-    cor_y_neg_patches = [np.array(get_patches(image, centers, size, mode = 'coronal')) for image, centers in zip(labels, n_vox_coord_pos)]
-    sag_x_neg_patches = [np.array(get_patches(image, centers, size, mode = 'saggital')) for image, centers in zip(images_norm, n_vox_coord_pos)]
-    sag_y_neg_patches = [np.array(get_patches(image, centers, size, mode = 'saggital')) for image, centers in zip(labels, n_vox_coord_pos)]
+    axial_x_neg_patches = [np.array(get_patches(image, centers, size, mode='axial')) for image, centers in zip(images_norm, n_vox_coord_pos)]
+    axial_y_neg_patches = [np.array(get_patches(image, centers, size, mode='axial')) for image, centers in zip(labels, n_vox_coord_pos)]
+    cor_x_neg_patches = [np.array(get_patches(image, centers, size, mode='coronal')) for image, centers in zip(images_norm, n_vox_coord_pos)]
+    cor_y_neg_patches = [np.array(get_patches(image, centers, size, mode='coronal')) for image, centers in zip(labels, n_vox_coord_pos)]
+    sag_x_neg_patches = [np.array(get_patches(image, centers, size, mode='saggital')) for image, centers in zip(images_norm, n_vox_coord_pos)]
+    sag_y_neg_patches = [np.array(get_patches(image, centers, size, mode='saggital')) for image, centers in zip(labels, n_vox_coord_pos)]
     
     x_axial = [np.concatenate([p1, p2]) for p1, p2 in zip(axial_x_pos_patches, axial_x_neg_patches)]
     y_axial = [np.concatenate([p1, p2]) for p1, p2 in zip(axial_y_pos_patches, axial_y_neg_patches)]
@@ -180,7 +200,6 @@ def load_patch_vectors(name, label_name, dir_name, size, random_state=42, balanc
     y_sag = [np.concatenate([p1, p2]) for p1, p2 in zip(sag_y_pos_patches, sag_y_neg_patches)]
     vox_positions = [np.concatenate([p1, p2]) for p1, p2 in zip(p_vox_coord_pos, n_vox_coord_pos)]
 
-    
     return x_axial, y_axial, x_cor, y_cor, x_sag, y_sag, vox_positions, image_names
 
 
@@ -190,35 +209,40 @@ def get_atlas_vectors(dir_name, centers, t1_names):
     Generate training data vectors from probabilistic atlases. These vectors are concatenated with fully-connected layers.
     """
 
-    subjects = [f for f in sorted(os.listdir(dir_name)) if os.path.isdir(os.path.join(dir_name, f))]
-    atlas_names =  [os.path.join(dir_name, subject, 'tmp', 'MNI_sub_probabilities.nii.gz') for subject in subjects]
+    CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
+    ATLAS_PATH = os.path.join(CURRENT_PATH, 'atlases')
+    subfolder = 'backward'
 
-    
+    print 'From: get_atlas_vectors', t1_names
+
+    subjects = [f for f in sorted(os.listdir(dir_name)) if os.path.isdir(os.path.join(dir_name, f))]
+    # atlas_names = [os.path.join(dir_name, subject, 'tmp', 'MNI_sub_probabilities.nii.gz') for subject in subjects]
+
     atlas_images = []
     # load atlas, register if does not exist 
-    for t1, atlas, subject in zip(t1_names, atlas_names, subjects):
-        
-        if os.path.exists(atlas) is False:
-            print "         --> registering priors for scan", subject, 
-            t = register_masks(t1)
+    for subject in subjects:
+        print 'From: get_atlas_vectors', os.path.join(dir_name, subject, subfolder, 'rT1d_template.nii.gz')
+        if os.path.exists(os.path.join(dir_name, subject, subfolder, 'rT1d_template.nii.gz')) is False:
+            print "         --> backward registering T1 for scan", subject,
+            t = register_masks_backward(subject)
             print "(elapsed time ", t/60.0, "min.)"
             
-        atlas_images.append(load_nii(atlas).get_data())
-                
+        atlas_images.append(load_nii(os.path.join(ATLAS_PATH, 'atlas_subcortical_MNI.nii.gz')).get_data())
+
     # ATLAS probabilities (centered voxel)
     # convert lesion centers
     lc = map(lambda l: np.asarray(l), centers)
-    atlas_vectors = [a[c[:,0], c[:,1], c[:,2]] for a, c in zip(atlas_images, lc)]
+    atlas_vectors = [a[c[:, 0], c[:, 1], c[:, 2]] for a, c in zip(atlas_images, lc)]
 
     # correct for background. if no probability exists for any class, set as background
     for index in range(len(atlas_vectors)):
         if np.sum(atlas_vectors[index]) == 0:
-            atlas_vectors[v][14] = 1
+            atlas_vectors[index, 14] = 1
 
-    return atlas_vectors 
+    return atlas_vectors
 
 
-def load_patches(dir_name, mask_name, t1_name, size, seeds = None, balance_neg = True):
+def load_patches(dir_name, subfolder, mask_name, t1_name, size, seeds = None, balance_neg = True):
 
     """
     Load all patches for a given subject image passed as argument. This function makes no sense when using only
@@ -239,24 +263,26 @@ def load_patches(dir_name, mask_name, t1_name, size, seeds = None, balance_neg =
     - y_axial a list containing all selected labels (saggital view) [num_samples, p1, p2]
     - centers: voxel coordinates for each patch.
     """
+
     # Setting up the lists for all images
 
     random_state = np.random.randint(1)
 
     print '    --> Loading ' + t1_name + ' images'
+
     x_axial, y_axial, x_cor, y_cor, x_sag, y_sag, centers, t1_names = load_patch_vectors(t1_name,
+                                                                                         subfolder,
                                                                                          mask_name,
                                                                                          dir_name,
                                                                                          size,
                                                                                          random_state)
-
     # load atlas vectors
     x_atlas = get_atlas_vectors(dir_name, centers, t1_names)
     
     return x_axial, y_axial, x_cor, y_cor, x_sag, y_sag, x_atlas, t1_names 
 
 
-def load_only_names(dir_name,mask_name,t1_name, use_t1, size):
+def load_only_names(dir_name, mask_name, t1_name, use_t1, size):
     """
     Load image names given the options configuration file
     """
@@ -351,21 +377,27 @@ def load_patch_batch(scan_name,  options, datatype=np.float32):
        - x_atas [batch_size, 15]  
        - voxel coordinate
     """
-    
+
+    # TODO: move subfolder to config file
+    subfolder = 'backward'
+    CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
+    ATLAS_PATH = os.path.join(CURRENT_PATH, 'atlases')
+
     [dir_name, name] = os.path.split(scan_name)
     
-    image = load_nii(scan_name).get_data()
+    image = load_nii(os.path.join(dir_name, options['subfolder'], name)).get_data()
     image_norm = (image - image[np.nonzero(image)].mean()) / image[np.nonzero(image)].std()
 
-    # load atlas, register if does not exist 
-    atlas_name = os.path.join(dir_name,  'tmp', 'MNI_sub_probabilities.nii.gz')
-    if os.path.exists(atlas_name) is False:
-        print "         --> registering priors for scan", name, 
-        t = register_masks(scan_name)
+    # load t1, register if does not exist
+    t1_name = os.path.join(dir_name, subfolder, 'rT1d_template.nii.gz')
+    print t1_name
+    if os.path.exists(t1_name) is False:
+        print "         --> registering t1 for scan", name,
+        t = register_masks_backward(scan_name)
         print "(elapsed time ", t/60.0, "min.)"
 
     if options['crop']:
-        mask_atlas = nib.load(os.path.join(dir_name, 'tmp', 'MNI_subcortical_mask.nii.gz'))
+        mask_atlas = nib.load(os.path.join(dir_name, subfolder, 'MNI_subcortical_mask.nii.gz'))
         b_mask = ndimage.morphology.binary_dilation(mask_atlas.get_data(), iterations = 10)
         lesion_centers = get_mask_voxels(b_mask.astype(np.bool))
     else:
@@ -375,28 +407,26 @@ def load_patch_batch(scan_name,  options, datatype=np.float32):
         print "    -->  num of samples to test:", len(lesion_centers)
         
 
-    atlas_image =  load_nii(atlas_name).get_data()
+    atlas_image = load_nii(os.path.join(ATLAS_PATH, 'atlas_subcortical_MNI.nii.gz')).get_data()
     batch_size = options['test_batch_size']
     for i in range(0, len(lesion_centers), batch_size):
         
         centers = lesion_centers[i:i+batch_size]
-        axial_patches = np.stack([np.array(get_patches(image_norm, centers, options['patch_size'], mode= 'axial')).astype(datatype)],axis=1)
-        coronal_patches = np.stack([np.array(get_patches(image_norm, centers, options['patch_size'], mode= 'coronal')).astype(datatype)], axis=1)
-        saggital_patches  = np.stack([np.array(get_patches(image_norm, centers, options['patch_size'], mode= 'saggital')).astype(datatype)], axis = 1)
+        axial_patches = np.stack([np.array(get_patches(image_norm, centers, options['patch_size'], mode='axial')).astype(datatype)], axis=1)
+        coronal_patches = np.stack([np.array(get_patches(image_norm, centers, options['patch_size'], mode='coronal')).astype(datatype)], axis=1)
+        saggital_patches = np.stack([np.array(get_patches(image_norm, centers, options['patch_size'], mode='saggital')).astype(datatype)], axis=1)
 
         # ATLAS probabilities
         cl = map(lambda l: np.asarray(l), centers)
-        atlas_vector = np.stack([atlas_image[c[0],c[1],c[2]] for c in cl]).astype(dtype=np.float32)
+        atlas_vector = np.stack([atlas_image[c[0], c[1], c[2]] for c in cl]).astype(dtype=np.float32)
 
         # correct for background
         for index in range(atlas_vector.shape[0]):
             if np.sum(atlas_vector[index]) == 0:
-                atlas_vector[index,14] = 1
+                atlas_vector[index, 14] = 1
 
-    
         yield axial_patches, coronal_patches, saggital_patches, atlas_vector, centers
 
-        
 
 def test_scan(net, test_scan, options):
     """
@@ -410,7 +440,7 @@ def test_scan(net, test_scan, options):
     [image_path, name] = os.path.split(test_scan)
 
     # create output images
-    t1_nii = nib.load(test_scan)
+    t1_nii = nib.load(os.path.join(image_path, options['subfolder'], name))
     image = np.zeros_like(t1_nii.get_data())
 
     if options['out_probabilities'] == 'True':
@@ -457,13 +487,14 @@ def test_scan(net, test_scan, options):
 
     return (time.time() - s_time) / 60.0
 
+
 def post_process_segmentation(image_folder, input_mask):
     """
     doc
     """
     filtered_mask = np.zeros_like(input_mask)            
     atlas = load_nii(os.path.join(image_folder,  'tmp', 'MNI_subcortical_mask.nii.gz')).get_data()
-    for l in range(1,15):
+    for l in range(1, 15):
         
         th_label = input_mask == l
         labels, num_labels = ndimage.label(th_label)
@@ -501,24 +532,24 @@ def register_masks(input_mask):
     s_time = time.time()
 
     CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
-    NIFTIREG_PATH = os.path.join(CURRENT_PATH, 'utils','niftyreg') 
-    ATLAS_PATH =  os.path.join(CURRENT_PATH, 'atlases')
+    NIFTIREG_PATH = os.path.join(CURRENT_PATH, 'utils', 'niftyreg')
+    ATLAS_PATH = os.path.join(CURRENT_PATH, 'atlases')
 
     # rigid registration
     if os.path.exists(os.path.join(image_dir, 'tmp','rT1_template.nii.gz')) is False:
 
         os.system((NIFTIREG_PATH + '/reg_aladin -ref ' + input_mask + 
                    ' -flo ' + os.path.join(ATLAS_PATH, 'T1_template.nii.gz') + 
-                   ' -aff ' + os.path.join(image_dir, 'tmp','transf.txt') +
-                   ' -res ' + os.path.join(image_dir, 'tmp','rT1_template.nii.gz') + '>  /dev/null'))
+                   ' -aff ' + os.path.join(image_dir, 'tmp', 'transf.txt') +
+                   ' -res ' + os.path.join(image_dir, 'tmp', 'rT1_template.nii.gz') + '>  /dev/null'))
 
     # deformable registration
     if os.path.exists(os.path.join(image_dir, 'tmp','rT1d_template.nii.gz')) is False:
         os.system((NIFTIREG_PATH + '/reg_f3d -ref ' + input_mask + 
                    ' -flo ' + os.path.join(ATLAS_PATH, 'T1_template.nii.gz') + 
-                   ' -aff ' + os.path.join(image_dir, 'tmp','transf.txt') +
-                   ' -cpp ' + os.path.join(image_dir, 'tmp','transform.nii') +
-                   ' -res ' + os.path.join(image_dir, 'tmp','rT1d_template.nii.gz') + '>  /dev/null'))
+                   ' -aff ' + os.path.join(image_dir, 'tmp', 'transf.txt') +
+                   ' -cpp ' + os.path.join(image_dir, 'tmp', 'transform.nii') +
+                   ' -res ' + os.path.join(image_dir, 'tmp', 'rT1d_template.nii.gz') + '>  /dev/null'))
 
 
     # register the atlas back to the image space
@@ -528,25 +559,95 @@ def register_masks(input_mask):
         atlas = nib.load(os.path.join(ATLAS_PATH, 'atlas_subcortical_MNI.nii.gz'))
         s_atlas = np.zeros(t1.get_data().shape + (15,)).astype(np.float32)
         for st in range(15):
-            tmp_atlas = nib.Nifti1Image(atlas.get_data()[:,:,:,st], affine = atlas.affine)
-            tmp_atlas.to_filename(os.path.join(image_dir, 'tmp','tmp.nii.gz'))
+            tmp_atlas = nib.Nifti1Image(atlas.get_data()[:, :, :, st], affine=atlas.affine)
+            tmp_atlas.to_filename(os.path.join(image_dir, 'tmp', 'tmp.nii.gz'))
             os.system((NIFTIREG_PATH + '/reg_resample -ref ' + input_mask + 
                        ' -flo ' + os.path.join(image_dir, 'tmp', 'tmp.nii.gz') + 
-                       ' -trans ' + os.path.join(image_dir, 'tmp','transform.nii') +
-                       ' -res ' + os.path.join(image_dir, 'tmp','r_tmp.nii.gz') + '>  /dev/null'))
+                       ' -trans ' + os.path.join(image_dir, 'tmp', 'transform.nii') +
+                       ' -res ' + os.path.join(image_dir, 'tmp', 'r_tmp.nii.gz') + '>  /dev/null'))
             r_tmp_atlas = nib.load(os.path.join(image_dir, 'tmp', 'r_tmp.nii.gz'))
-            s_atlas[:,:,:,st] = r_tmp_atlas.get_data().astype(np.float32)
+            s_atlas[:, :, :, st] = r_tmp_atlas.get_data().astype(np.float32)
 
         # save the atlas
-        subocortical_atlas = nib.Nifti1Image(s_atlas, affine = t1.affine)
-        subocortical_atlas.to_filename(os.path.join(image_dir, 'tmp', 'MNI_sub_probabilities.nii.gz'))
+        subcortical_atlas = nib.Nifti1Image(s_atlas, affine = t1.affine)
+        subcortical_atlas.to_filename(os.path.join(image_dir, 'tmp', 'MNI_sub_probabilities.nii.gz'))
 
         # generate dilated binary mask (not consider background class = 15)
         mask = np.sum(s_atlas[:,:,:,0:13], axis = 3) > 0
-        dilated_mask = ndimage.binary_dilation(mask, iterations = 5)
+        dilated_mask = ndimage.binary_dilation(mask, iterations=5)
 
         binary_atlas_mask = nib.Nifti1Image(dilated_mask.astype('float32'), affine = t1.affine)
         binary_atlas_mask.to_filename(os.path.join(image_dir, 'tmp', 'MNI_subcortical_mask.nii.gz'))
 
     return time.time() - s_time
+
     
+def register_masks_backward(input_mask, testing=False):
+    """
+    - Register the T1-w subject volume to  MNI subcortical atlas space
+    - Input:
+    -    input_mask: path to the t1-w input mask used as reference
+
+    - Output:
+    -    Elapsed time
+
+    """
+    [image_dir, name] = os.path.split(input_mask)
+
+    # TODO: move this to config
+    subfolder = 'backward'
+
+    # mk a tmp folder to store registered atlases
+    try:
+        os.mkdir(os.path.join(image_dir, subfolder))
+    except:
+        pass
+
+    s_time = time.time()
+
+    CURRENT_PATH = os.path.dirname(os.path.abspath(__file__))
+    NIFTIREG_PATH = os.path.join(CURRENT_PATH, 'utils', 'niftyreg')
+    ATLAS_PATH = os.path.join(CURRENT_PATH, 'atlases')
+
+    # rigid registration
+    if os.path.exists(os.path.join(image_dir, subfolder, 'rT1_template.nii.gz')) is False:
+        os.system((NIFTIREG_PATH + '/reg_aladin -ref ' + os.path.join(ATLAS_PATH, 'T1_template.nii.gz') +
+                   ' -flo ' + input_mask +
+                   ' -aff ' + os.path.join(image_dir, subfolder, 'transf.txt') +
+                   ' -res ' + os.path.join(image_dir, subfolder, 'rT1_template.nii.gz') + '>  /dev/null'))
+
+    # deformable registration
+    if os.path.exists(os.path.join(image_dir, subfolder, 'rT1d_template.nii.gz')) is False:
+        os.system((NIFTIREG_PATH + '/reg_f3d -ref ' + os.path.join(ATLAS_PATH, 'T1_template.nii.gz') +
+                   ' -flo ' + input_mask +
+                   ' -aff ' + os.path.join(image_dir, subfolder, 'transf.txt') +
+                   ' -cpp ' + os.path.join(image_dir, subfolder, 'transform.nii') +
+                   ' -res ' + os.path.join(image_dir, subfolder, 'rT1d_template.nii.gz') + '>  /dev/null'))
+
+    if os.path.exists(os.path.join(image_dir, subfolder, 'MNI_subcortical_mask.nii.gz')):
+        atlas = nib.load(os.path.join(ATLAS_PATH, 'atlas_subcortical_MNI.nii.gz'))
+        mask = np.sum(atlas.get_data()[:, :, :, 0:13], axis=3) > 0
+        dilated_mask = ndimage.binary_dilation(mask, iterations=5)
+        binary_atlas_mask = nib.Nifti1Image(dilated_mask.astype('float32'), affine=t1.affine)
+        binary_atlas_mask.to_filename(os.path.join(image_dir, subfolder, 'MNI_subcortical_mask.nii.gz'))
+
+    # register the groundtruth to the new image space
+
+    if (not testing) and (os.path.exists(os.path.join(image_dir, subfolder, 'gt_labels.nii.gz')) is False):
+        t1 = nib.load(os.path.join(ATLAS_PATH, 'T1_template.nii.gz'))
+        gt = nib.load(os.path.join(image_dir, 'gt_labels.nii.gz'))
+
+        tmp_gt = nib.Nifti1Image(gt.get_data(), affine=gt.affine)
+        tmp_gt.to_filename(os.path.join(image_dir, subfolder, 'tmp.nii.gz'))
+        os.system((NIFTIREG_PATH + '/reg_resample -inter 0 -ref ' + os.path.join(ATLAS_PATH, 'T1_template.nii.gz') +
+                   ' -flo ' + os.path.join(image_dir, subfolder, 'tmp.nii.gz') +
+                   ' -trans ' + os.path.join(image_dir, subfolder, 'transform.nii') +
+                   ' -res ' + os.path.join(image_dir, subfolder, 'r_tmp.nii.gz') + '>  /dev/null'))
+        r_tmp_atlas = nib.load(os.path.join(image_dir, subfolder, 'r_tmp.nii.gz'))
+        s_gt = r_tmp_atlas.get_data().astype(np.uint8)
+
+        # save the atlas
+        subcortical_gt = nib.Nifti1Image(s_gt, affine=t1.affine)
+        subcortical_gt.to_filename(os.path.join(image_dir, subfolder, 'gt_labels.nii.gz'))
+
+    return time.time() - s_time
