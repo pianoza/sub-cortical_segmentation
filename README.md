@@ -37,7 +37,7 @@ train_folder = /path/to/training_dataset/
 inference_folder = /path/to/images_to_infer_seg/
 t1_name = t1_name #ex. t1.nii, t1.nii.gz
 roi_name = gt_15_classes.nii.gz
-save_tmp = True
+output_name = segmentation_output.nii.gz
 ```
 
 Except for the model `name` and the training mode `mode`, the rest of parameters work well in most of the situations with default parameters.  
@@ -68,17 +68,17 @@ For training,  manual sub-cortical labels have to be provided along with T1-w im
 [training_folder]
 	     [image_1_folder]
 			    t1_image
-				manual_annotation (roi)
+			    manual_annotation (roi)
 	     [image_2_folder]
 			    t1_image
-				manual_annotation (roi)
+		    	    manual_annotation (roi)
 	     
 		 ....
 		 
 		 
 	     [image_n_folder]
 			    t1_image
-				manual_annotation (roi)
+			    manual_annotation (roi)
 
 ```
 ### Example: 
