@@ -12,12 +12,12 @@ def load_data(options):
     """
     Extact data from all images.  For all database image, patches from each image view (axial, coronal and saggital) are computed.
     This function is used to reduce the loading time in leave-one-out. So, data is only loaded one time and then training feature vectors
-    for the classification of eac image (leave-one-out or others) are computed. 
+    for the classification of eac image (leave-one-out or others) are computed.
 
-    Input: 
+    Input:
     - options:
         - training folder (folder)
-        - T1 name 
+        - T1 name
         - label name (mask)
         - patch size [p1, p2]
 
@@ -26,11 +26,12 @@ def load_data(options):
       - y_axial: a list of labels (axial slice) indexed for each of the database subjects. Each element contains array of [features, p1, p2]
       - ...
       - y_saggital: a list of labels (saggital slice) indexed for each of the database subjects. Each element contains array of [features, p1, p2]
-      - centers: a list of voxel coordinates for each of the extracted patches for each of the database subjects. 
-      - image names 
+      - centers: a list of voxel coordinates for each of the extracted patches for each of the database subjects.
+      - image names
     """
-    (x_axial, y_axial, x_cor, y_cor, x_sag, y_sag, x_atlas, names) = load_patches(dir_name=options['train_folder'],
-                                                                                  subfolder = options['subfolder'],
+
+    (x_axial, y_axial, x_cor, y_cor, x_sag, y_sag, x_atlas, names) = load_patches(options=options,
+                                                                                  dir_name=options['train_folder'],
                                                                                   t1_name=options['t1_name'],
                                                                                   mask_name=options['roi_name'],
                                                                                   size=tuple(options['patch_size']))
@@ -38,17 +39,6 @@ def load_data(options):
     return x_axial, x_cor, x_sag, y_axial, x_atlas, names
 
 
-def load_test_names(options, subjects):
-    """
-    Load image names. Extract names from folders and return a list.
-    """
-    dir_name = options['test_folder']
-    t1_name = options['t1_name']
-    if subjects is None:
-        subjects = [f for f in sorted(os.listdir(dir_name)) if os.path.isdir(os.path.join(dir_name, f))]
-    t1_names = [os.path.join(dir_name, subject, t1_name) for subject in subjects]
-
-    return t1_names
 
 def generate_training_set(x_axial, x_coronal, x_saggital, x_atlas, y, options, randomize=True):
     """
@@ -116,7 +106,7 @@ def generate_training_set(x_axial, x_coronal, x_saggital, x_atlas, y, options, r
     return x_train_axial, x_train_cor, x_train_sag, x_train_atlas, y_train
 
 
-def load_patch_vectors(options, subjects, name, label_name, dir_name, size, random_state, balance_neg=True):
+def load_patch_vectors(options, name, label_name, dir_name, size, random_state, balance_neg=True):
     """
     Generate all patch vectors for all subjects and one sequence (name). This is done for each image view (axial, coronal and axial)
     In subcortical brain tissue segmentation, I am extracting all positive class voxels (classes from 1 to 14) and the same number of
@@ -139,8 +129,7 @@ def load_patch_vectors(options, subjects, name, label_name, dir_name, size, rand
     """
 
     # Get the names of the images and load them and normalize images
-    if subjects is None:
-        subjects = [f for f in sorted(os.listdir(dir_name)) if os.path.isdir(os.path.join(dir_name, f))]
+    subjects = [f for f in sorted(os.listdir(dir_name)) if os.path.isdir(os.path.join(dir_name, f))]
 
     image_names = [os.path.join(dir_name, subject, name) for subject in subjects]
     images = [fix_shape(load_nii(name).get_data()) for name in image_names]
@@ -195,12 +184,11 @@ def load_patch_vectors(options, subjects, name, label_name, dir_name, size, rand
     return x_axial, y_axial, x_cor, y_cor, x_sag, y_sag, vox_positions, image_names
 
 
-def get_atlas_vectors(options, subjects, dir_name, centers, t1_names):
+def get_atlas_vectors(options, dir_name, centers, t1_names):
     """
     Generate training data vectors from probabilistic atlases. These vectors are concatenated with fully-connected layers.
     """
-    if subjects is None:
-        subjects = [f for f in sorted(os.listdir(dir_name)) if os.path.isdir(os.path.join(dir_name, f))]
+    subjects = [f for f in sorted(os.listdir(dir_name)) if os.path.isdir(os.path.join(dir_name, f))]
     atlas_names = [os.path.join(dir_name, subject, 'tmp', 'MNI_sub_probabilities.nii.gz') for subject in subjects]
 
     atlas_images = []
@@ -225,7 +213,7 @@ def get_atlas_vectors(options, subjects, dir_name, centers, t1_names):
     return atlas_vectors
 
   
-def load_patches(options, subjects, dir_name, mask_name, t1_name, size, seeds=None, balance_neg=True):
+def load_patches(options, dir_name, mask_name, t1_name, size, seeds=None, balance_neg=True):
     """
     Load all patches for a given subject image passed as argument. This function makes no sense when using only
     one channel, but it's useful when using more than one, as load_patch_vectors is called for each of the channels and
@@ -251,14 +239,13 @@ def load_patches(options, subjects, dir_name, mask_name, t1_name, size, seeds=No
 
     print '    --> Loading ' + t1_name + ' images'
     x_axial, y_axial, x_cor, y_cor, x_sag, y_sag, centers, t1_names = load_patch_vectors(options,
-                                                                                         subjects,
                                                                                          t1_name,
                                                                                          mask_name,
                                                                                          dir_name,
                                                                                          size,
                                                                                          random_state)
     # load atlas vectors
-    x_atlas = get_atlas_vectors(options, subjects, dir_name, centers, t1_names)
+    x_atlas = get_atlas_vectors(options, dir_name, centers, t1_names)
 
     return x_axial, y_axial, x_cor, y_cor, x_sag, y_sag, x_atlas, t1_names
 
@@ -360,7 +347,7 @@ def load_patch_batch(scan_name, options, datatype=np.float32):
 
     [dir_name, name] = os.path.split(scan_name)
 
-    image = load_nii(scan_name).get_data()
+    image = fix_shape(load_nii(scan_name).get_data())
     image_norm = (image - image[np.nonzero(image)].mean()) / image[np.nonzero(image)].std()
     # image_norm = image * (256.0 / (np.max(image) - np.min(image)))
 
@@ -404,6 +391,18 @@ def load_patch_batch(scan_name, options, datatype=np.float32):
     return axial_patches, coronal_patches, saggital_patches, atlas_vector, centers
 
 
+def load_test_names(options):
+    """
+    Load image names. Extract names from folders and return a list.
+    """
+    dir_name = options['test_folder']
+    t1_name = options['t1_name']
+    subjects = [f for f in sorted(os.listdir(dir_name)) if os.path.isdir(os.path.join(dir_name, f))]
+    t1_names = [os.path.join(dir_name, subject, t1_name) for subject in subjects]
+
+    return t1_names, subjects
+
+
 def testing(options, model):
     # get the testing image paths
     t1_test_paths, folder_names = load_test_names(options)
@@ -426,7 +425,7 @@ def test_scan(options, net, test):
     [image_path, name] = os.path.split(test)
 
     # create output images
-    t1_nii = nib.load(test)
+    t1_nii = fix_shape(nib.load(test))
     image = np.zeros_like(fix_shape(t1_nii.get_data()))
 
     if options['out_probabilities']:
@@ -451,15 +450,15 @@ def test_scan(options, net, test):
     # save segmentations
     if options['out_probabilities']:
         seg_out_prob = nib.Nifti1Image(image_proba, affine = t1_nii.affine)
-        seg_out_prob.to_filename(os.path.join(image_path, 'probmap_'+options['output_file']))
+        seg_out_prob.to_filename(os.path.join(image_path, 'probmap_'+options['out_name']))
 
     if options['post_process']:
         filtered_nii = nib.Nifti1Image(post_process_segmentation(image_path, image),
                                        affine = t1_nii.affine)
-        filtered_nii.to_filename(os.path.join(image_path, options['output_file']))
+        filtered_nii.to_filename(os.path.join(image_path, options['out_name']))
     else:
         raw_nii = nib.Nifti1Image(image, affine = t1_nii.affine)                                        
-        raw_nii.to_filename(os.path.join(image_path, 'rawseg_'+options['output_file']))
+        raw_nii.to_filename(os.path.join(image_path, 'rawseg_'+options['out_name']))
 
     return (time.time() - s_time) / 60.0
 
@@ -531,7 +530,7 @@ def register_masks(input_mask):
     # register the atlas back to the image space
 
     if os.path.exists(os.path.join(image_dir, 'tmp', 'MNI_sub_probabilities.nii.gz')) is False:
-        t1 = nib.load(input_mask)
+        t1 = fix_shape(nib.load(input_mask))
         atlas = nib.load(os.path.join(ATLAS_PATH, 'atlas_subcortical_MNI.nii.gz'))
         s_atlas = np.zeros(t1.get_data().shape + (15,)).astype(np.float32)
         for st in range(15):

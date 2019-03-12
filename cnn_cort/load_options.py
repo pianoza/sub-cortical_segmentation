@@ -55,6 +55,8 @@ def load_options(user_config):
         os.environ['THEANO_FLAGS']='mode=FAST_RUN,device=cpu,floatX=float32,optimizer=fast_compile'
     else:
         os.environ['THEANO_FLAGS']='mode=FAST_RUN,device='+options['mode'] +',floatX=float32,optimizer=fast_compile'
+    # Theano MKL options
+    os.environ['MKL_THREADING_LAYER']='GNU'
 
     return options 
 
