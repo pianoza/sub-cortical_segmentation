@@ -2,10 +2,27 @@ import os
 import sys
 import numpy as np
 from functools import partial
-
 from tkinter import filedialog
 from tkinter import *
 from tkinter.ttk import *
+
+import Queue
+
+import ConfigParser
+import nibabel as nib
+from cnn_cort.load_options import *
+from keras.utils import np_utils 
+
+CURRENT_PATH = os.getcwd()
+user_config = ConfigParser.RawConfigParser()
+user_config.read(os.path.join(CURRENT_PATH, 'configuration.cfg'))
+options = load_options(user_config)
+
+from cnn_cort.base import load_data, generate_training_set, testing
+from cnn_cort.keras_net import get_callbacks, get_model
+
+from train_test_task import TestTask
+
 
 class Application(Frame):
     def __init__(self, master=None):
@@ -25,6 +42,7 @@ class Application(Frame):
         parent.grid_columnconfigure(1, weight=2)
 
         return entry, button
+
 
     def get_label_entry(self, parent, row, labelTitle, entryText):
         label = Label(parent, text=labelTitle)
@@ -56,13 +74,6 @@ class Application(Frame):
         bStartTrain = Button(fTrain, text='Start training')
         bStartTrain.grid(row=3, columnspan=3, sticky=N+S, padx=5, pady=5)
         
-        # Test frame
-        fTest = LabelFrame(pWindow, text='Test')
-        eTestFolder, bTestFolder = self.get_label_entry_button(fTest, 0, 'Test path:', 'Browse')
-        eTestModel, eTestModel = self.get_label_entry_button(fTest, 1, 'Model:', 'Browse')
-        bStartTest = Button(fTest, text='Start testing')
-        bStartTest.grid(row=2, columnspan=3, sticky=N+S, padx=5, pady=5)
-
         # Log frame
         fLog = LabelFrame(pWindow, text='Log')
         sLog = Scrollbar(fLog)
@@ -71,6 +82,14 @@ class Application(Frame):
         sLog.pack(side=RIGHT, fill=Y)
         tLog.pack(side=LEFT, fill=BOTH, expand=True)
 
+        # Test frame, appears before Log frame, but need the log screen declared first
+        fTest = LabelFrame(pWindow, text='Test')
+        eTestFolder, bTestFolder = self.get_label_entry_button(fTest, 0, 'Test path:', 'Browse')
+        bTestFolder.config(command=partial(self.select_path, eTestFolder, 'DIR'))
+        eTestModel, bTestModel = self.get_label_entry_button(fTest, 1, 'Model:', 'Browse')
+        bTestModel.config(command=partial(self.select_path, eTestModel, 'FILE'))
+        bStartTest = Button(fTest, text='Start testing', command=partial(self.start_testing, eTestModel, eTestFolder, tLog))
+        bStartTest.grid(row=2, columnspan=3, sticky=N+S, padx=5, pady=5)
 
         # set window title
         self.winfo_toplevel().title('Brain sub-cortical structure segmentation tool')
@@ -81,13 +100,18 @@ class Application(Frame):
         pWindow.pack(fill=BOTH, expand=True)
         return pWindow
 
+    
+    def start_testing(self, modelPath, testPath, log):
+        self.queue = Queue.Queue()
+        TestTask(self.queue, modelPath, testPath, log, [self.eT1Name, self.eGTName, self.eOutputName]).start()
+
 
     def tab_config(self, parent):
         pWindow = PanedWindow(parent, orient='vertical')
         frame = Frame(pWindow)
-        eT1Name = self.get_label_entry(frame, 0, 'T1 name', 'T1.nii.gz')
-        eGTName = self.get_label_entry(frame, 1, 'Ground truth name', 'ground_truth.nii.gz')
-        eOutputName = self.get_label_entry(frame, 2, 'Output file name', 'seg_out.nii.gz')
+        self.eT1Name = self.get_label_entry(frame, 0, 'T1 name', 'T1.nii.gz')
+        self.eGTName = self.get_label_entry(frame, 1, 'Ground truth name', 'ground_truth.nii.gz')
+        self.eOutputName = self.get_label_entry(frame, 2, 'Output file name', 'seg_out.nii.gz')
         pWindow.add(frame)
         pWindow.pack(side=TOP, fill=BOTH, expand=True)
         return pWindow

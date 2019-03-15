@@ -25,7 +25,7 @@ K.set_image_dim_ordering("th")
 
 
 def get_callbacks(options, save_path):
-    checkpoint = ModelCheckpoint(filepath=os.path.join(save_path, 'checkpoint.h5'), save_weights_only=True)
+    checkpoint = ModelCheckpoint(filepath=os.path.join(save_path, 'checkpoint.h5'))
     early_stopping = EarlyStopping(monitor='val_loss', patience=options['patience'])
     return [checkpoint, early_stopping]
 
