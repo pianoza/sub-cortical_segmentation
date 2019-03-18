@@ -1,10 +1,6 @@
-# Sub-cortical brain tissue segmentation of MRI
+# Sub-cortical brain structure segmentation of MRI
 
-Subcortical brain tissue segmentation of MRI images using a combination of convolutional and a-priori spatial feautures. An electronic prepint of the method is available here:
-
-```
-Kushibar, K., Valverde, S., et al. Publication on arxiv
-```
+Subcortical brain structure segmentation of MRI images using a combination of convolutional and a-priori spatial feautures. Related paper of the method is available here: [https://www.medicalimageanalysisjournal.com/article/S1361-8415(18)30383-9/abstract](https://www.medicalimageanalysisjournal.com/article/S1361-8415(18)30383-9/abstract)
 
 ## Overview: 
 
@@ -15,6 +11,9 @@ This repository implements a voxelwise convolutional neural network based approa
 
 Contrary to other available works, the proposed network is trained using a restricted sample selection to force the network to learn only the most challenging voxels from structure boundaries. For more information about the method of the evaluation performed, please see the related publication. 
 
+## Coming soon:
+- Keras implementation of the method
+- Transfer learning pipeline for sub-cortical structure segmentation
 
 # Install:
 
@@ -37,10 +36,10 @@ train_folder = /path/to/training_dataset/
 inference_folder = /path/to/images_to_infer_seg/
 t1_name = t1_name #ex. t1.nii, t1.nii.gz
 roi_name = gt_15_classes.nii.gz
-output_name = segmentation_output.nii.gz
+save_tmp = True
 ```
 
-Except for the model `name` and the training mode `mode`, the rest of parameters work well in most of the situations with default parameters.  
+Unless the model `name` and the training mode `mode`, the rest of parameters work well in most of the situations with default parameters.  
 
 ```python
 [model]
@@ -68,17 +67,17 @@ For training,  manual sub-cortical labels have to be provided along with T1-w im
 [training_folder]
 	     [image_1_folder]
 			    t1_image
-			    manual_annotation (roi)
+				manual_annotation (roi)
 	     [image_2_folder]
 			    t1_image
-		    	    manual_annotation (roi)
+				manual_annotation (roi)
 	     
 		 ....
 		 
 		 
 	     [image_n_folder]
 			    t1_image
-			    manual_annotation (roi)
+				manual_annotation (roi)
 
 ```
 ### Example: 
@@ -183,12 +182,28 @@ The next figure depicts an output example, where the first image shows the outpu
 
 ![pipeline](/imgs/example.png)	
 
+
+# Limitations:
+
++ The current method would only work on GNU/Linux 64bit systems. We deal with image registration between spatial atlases and T1-w inside the training routines. So far, image registration is done using included binaries for [NiftiReg](http://niftyreg.sourceforge.net/) which have been compiled for GNU/Linux 64 bits. _We are working to move the method to Docker containers._
+
 # Citing this work:
 
 Please cite this work as:
 
 ```
-put a publication 
+@article{kushibar2018automated,
+  title={Automated sub-cortical brain structure segmentation combining spatial and deep convolutional features},
+  author={Kushibar, Kaisar and Valverde, Sergi and Gonz{\'a}lez-Vill{\`a}, Sandra and Bernal, Jose and Cabezas, Mariano and Oliver, Arnau and Llad{\'o}, Xavier},
+  journal={Medical image analysis},
+  volume={48},
+  pages={177--186},
+  year={2018},
+  publisher={Elsevier}
+} 
 ```
 
  
+# License:
+
+License for this software software: BSD 3-Clause License. A copy of this license is present in the root directory.
