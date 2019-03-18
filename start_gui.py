@@ -1,3 +1,9 @@
+# ------------------------------------------------------------
+# Training script example for Keras implementation
+# 
+# Kaisar Kushibar (2019)
+# kaisar.kushibar@udg.edu
+# ------------------------------------------------------------
 import os
 import sys
 import numpy as np

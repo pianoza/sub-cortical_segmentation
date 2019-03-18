@@ -1,5 +1,5 @@
 # ------------------------------------------------------------
-# Training script example
+# Training script example for theano implementation
 #
 # - Useful to train and test a single network (ex. MICCAI2012)
 #

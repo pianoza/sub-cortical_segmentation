@@ -1,3 +1,9 @@
+# ------------------------------------------------------------
+# Training script example for Keras implementation
+# 
+# Kaisar Kushibar (2018)
+# kaisar.kushibar@udg.edu
+# ------------------------------------------------------------
 import os, sys, ConfigParser
 import nibabel as nib
 from cnn_cort.load_options import *
