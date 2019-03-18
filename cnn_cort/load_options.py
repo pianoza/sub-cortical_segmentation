@@ -28,8 +28,8 @@ def load_options(user_config):
     options['current_scan'] = ''
     options['t1_name'] = user_config.get('database', 't1_name')
     options['roi_name'] = user_config.get('database', 'roi_name')
-    options['out_name'] = 'out_seg.nii.gz'
-    options['save_tmp'] = user_config.get('database', 'save_tmp')
+    options['out_name'] = user_config.get('database', 'output_name')
+    options['save_tmp'] = True
     exp_folder = None 
 
     # net options
@@ -45,16 +45,18 @@ def load_options(user_config):
     options['net_verbose'] = user_config.getint('model', 'net_verbose')
     options['load_weights'] = user_config.get('model', 'load_weights')
     options['randomize_train'] = True
-    options['debug'] = user_config.get('model', 'debug')
-    options['out_probabilities'] = user_config.get('model', 'out_probabilities')
-    options['post_process'] = user_config.get('model', 'post_process')
-    options['crop'] = user_config.get('model', 'speedup_segmentation')
+    options['debug'] = user_config.getboolean('model', 'debug')
+    options['out_probabilities'] = user_config.getboolean('model', 'out_probabilities')
+    options['post_process'] = user_config.getboolean('model', 'post_process')
+    options['crop'] = user_config.getboolean('model', 'speedup_segmentation')
 
     # CUDA GPU / CPU options
     if options['mode'].find('cuda') == -1:
         os.environ['THEANO_FLAGS']='mode=FAST_RUN,device=cpu,floatX=float32,optimizer=fast_compile'
     else:
         os.environ['THEANO_FLAGS']='mode=FAST_RUN,device='+options['mode'] +',floatX=float32,optimizer=fast_compile'
+    # Theano MKL options
+    os.environ['MKL_THREADING_LAYER']='GNU'
 
     return options 
 
