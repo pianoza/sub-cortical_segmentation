@@ -11,6 +11,9 @@ import keras.backend as K
 from keras.optimizers import Adagrad, Adadelta, Adam, SGD
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 
+from tkinter import *
+from tkinter.ttk import *
+
 ## extra imports to set GPU options
 import tensorflow as tf
 ###################################

@@ -7,6 +7,8 @@ import scipy.io as io
 from scipy import ndimage, stats
 from operator import add
 
+from tkinter import *
+from tkinter.ttk import *
 
 def load_data(options):
     """
@@ -99,9 +101,9 @@ def generate_training_set(x_axial, x_coronal, x_saggital, x_atlas, y, options, r
     x_train_sag = np.expand_dims(x_train_sag, axis = 1)
 
     if options['debug']:
-        print "    --> X_TRAIN: ", x_train_axial.shape[0], x_train_axial.shape
-        print "    --> Y_TRAIN POS: ", y_train[y_train > 0].shape[0]
-        print "    --> Y_TRAIN NEG: ", y_train[y_train == 0].shape[0] 
+        print "    --> X_TRAIN: {} {}".format(x_train_axial.shape[0], x_train_axial.shape)
+        print "    --> Y_TRAIN POS: {}".format(y_train[y_train > 0].shape[0])
+        print "    --> Y_TRAIN NEG: {}".format(y_train[y_train == 0].shape[0])
     
     return x_train_axial, x_train_cor, x_train_sag, x_train_atlas, y_train
 
@@ -195,9 +197,9 @@ def get_atlas_vectors(options, dir_name, centers, t1_names):
     # load atlas, register if does not exist
     for t1, atlas, subject in zip(t1_names, atlas_names, subjects):
         if os.path.exists(atlas) is False:
-            print "         --> registering priors for scan", subject,
+            print "         --> registering priors for scan {}".format(subject)
             t = register_masks(t1)
-            print "(elapsed time ", t / 60.0, "min.)"
+            print " (elapsed time {} min.".format(t / 60.0)
         atlas_images.append(fix_shape(load_nii(atlas).get_data()))
 
     # ATLAS probabilities (centered voxel)
@@ -354,9 +356,9 @@ def load_patch_batch(scan_name, options, datatype=np.float32):
     # load atlas, register if does not exist
     atlas_name = os.path.join(dir_name, 'tmp', 'MNI_sub_probabilities.nii.gz')
     if os.path.exists(atlas_name) is False:
-        print "         --> registering priors for scan", name,
+        print "         --> registering priors for scan ", name, 
         t = register_masks(scan_name)
-        print "(elapsed time ", t / 60.0, "min.)"
+        print "(elapsed time "+str(t / 60.0)+" min.)"
 
     if options['crop']:
         mask_atlas = nib.load(os.path.join(dir_name, 'tmp', 'MNI_subcortical_mask.nii.gz'))
@@ -366,7 +368,7 @@ def load_patch_batch(scan_name, options, datatype=np.float32):
         lesion_centers = get_mask_voxels(image.astype(np.bool))
 
     if options['debug']:
-        print "    -->  num of samples to test:", len(lesion_centers)
+        print "    -->  num of samples to test: "+str(len(lesion_centers))
 
     atlas_image = load_nii(atlas_name).get_data()
 
@@ -410,7 +412,7 @@ def testing(options, model):
     # iterate through all test scans
     for t1, current_scan in zip(t1_test_paths, folder_names):
         t = test_scan(options, model, t1)
-        print "    -->  tested subject :", current_scan, "(elapsed time:", t, "min.)"
+        print "    -->  tested subject : " + current_scan + " (elapsed time: " + str(t) + "min.)"
 
 
 def test_scan(options, net, test):
@@ -434,7 +436,7 @@ def test_scan(options, net, test):
     # test the image in batches to reduce the amount of required RAM
     # if options['crop'] is set, only a ROI around the subcortical space is infered
     batch_axial, batch_cor, batch_sag, atlas, centers = load_patch_batch(test, options)
-    print 'Testing subject', os.path.basename(image_path)
+    print 'Testing subject ' + os.path.basename(image_path)
 
     # predict classes
     y_pred = net.predict([batch_axial, batch_cor, batch_sag, atlas], batch_size=options['test_batch_size'])

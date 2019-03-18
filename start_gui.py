@@ -21,7 +21,19 @@ options = load_options(user_config)
 from cnn_cort.base import load_data, generate_training_set, testing
 from cnn_cort.keras_net import get_callbacks, get_model
 
-from train_test_task import TestTask
+from train_test_task import TestTask, TrainTask
+
+
+class StdoutRedirector(object):
+    def __init__(self, tLog):
+        self.log = tLog
+
+    def write(self, msg):
+        self.log.insert(END, msg)
+        self.log.see(END)
+
+    def flush(self):
+        self.log.see(END)
 
 
 class Application(Frame):
@@ -30,6 +42,8 @@ class Application(Frame):
         self.master = master
         self.pack()
         self.show_main_window()
+        self.isProcessing = False
+        self.queue = Queue.Queue()
 
 
     def get_label_entry_button(self, parent, row, labelTitle, buttonTitle):
@@ -69,10 +83,12 @@ class Application(Frame):
         bModelFolder.config(command=partial(self.select_path, eModelFolder, 'FILE'))
 
         eSaveFolder, bSaveFolder = self.get_label_entry_button(fTrain, 2, 'Save path:', 'Browse')
-        bSaveFolder.config(command=partial(self.select_path, eSaveFolder, 'SAVE'))
+        bSaveFolder.config(command=partial(self.select_path, eSaveFolder, 'DIR'))
+
+        eModelName = self.get_label_entry(fTrain, 3, 'Save model name:', '')
 
         bStartTrain = Button(fTrain, text='Start training')
-        bStartTrain.grid(row=3, columnspan=3, sticky=N+S, padx=5, pady=5)
+        bStartTrain.grid(row=4, columnspan=3, sticky=N+S, padx=5, pady=5)
         
         # Log frame
         fLog = LabelFrame(pWindow, text='Log')
@@ -81,6 +97,9 @@ class Application(Frame):
         sLog.config(command=tLog.yview)
         sLog.pack(side=RIGHT, fill=Y)
         tLog.pack(side=LEFT, fill=BOTH, expand=True)
+        
+        # Redirect all standard outputs to the tLog
+        sys.stdout = StdoutRedirector(tLog)
 
         # Test frame, appears before Log frame, but need the log screen declared first
         fTest = LabelFrame(pWindow, text='Test')
@@ -88,8 +107,10 @@ class Application(Frame):
         bTestFolder.config(command=partial(self.select_path, eTestFolder, 'DIR'))
         eTestModel, bTestModel = self.get_label_entry_button(fTest, 1, 'Model:', 'Browse')
         bTestModel.config(command=partial(self.select_path, eTestModel, 'FILE'))
-        bStartTest = Button(fTest, text='Start testing', command=partial(self.start_testing, eTestModel, eTestFolder, tLog))
+        bStartTest = Button(fTest, text='Start testing', command=partial(self.start_testing, eTestModel, eTestFolder))
         bStartTest.grid(row=2, columnspan=3, sticky=N+S, padx=5, pady=5)
+        
+        bStartTrain.config(command=partial(self.start_training, eTrainFolder, eSaveFolder, eModelName, eModelFolder))
 
         # set window title
         self.winfo_toplevel().title('Brain sub-cortical structure segmentation tool')
@@ -101,9 +122,17 @@ class Application(Frame):
         return pWindow
 
     
-    def start_testing(self, modelPath, testPath, log):
-        self.queue = Queue.Queue()
-        TestTask(self.queue, modelPath, testPath, log, [self.eT1Name, self.eGTName, self.eOutputName]).start()
+    def start_training(self, trainPath, savePath, modelName, savedModel):
+        if self.queue.empty():
+            TrainTask(self.queue, trainPath, savePath, modelName, savedModel, [self.eT1Name, self.eGTName, self.eOutputName]).start()
+        else:
+            print 'WAITING FOR A PROCESS TO FINISH...'
+
+    def start_testing(self, modelPath, testPath):
+        if self.queue.empty():
+            TestTask(self.queue, modelPath, testPath, [self.eT1Name, self.eGTName, self.eOutputName]).start()
+        else:
+            print 'WAITING FOR A PROCESS TO FINISH...'
 
 
     def tab_config(self, parent):
@@ -119,7 +148,7 @@ class Application(Frame):
 
     def show_main_window(self):
         # tabs
-        nMainWindow = Notebook(self.master, width=500, height=600)
+        nMainWindow = Notebook(self.master, width=700, height=650)
         nMainWindow.add(self.tab_train_test(nMainWindow), text='Train and test')
         nMainWindow.add(self.tab_config(nMainWindow), text='Configurations')
         nMainWindow.pack(fill=BOTH, expand=True, ipadx=10, ipady=10)
