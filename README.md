@@ -13,7 +13,6 @@ Contrary to other available works, the proposed network is trained using a restr
 
 ## Coming soon:
 - Supplementary data for the related publications
-- Updated documentation for the latest features (transfer learning, GUI, etc.)
 
 # Install:
 Keras and Theano implementations of the CNN architecture are available. Installing requirements as shown below should be enough to be able to run the method using either CNN implementations.
