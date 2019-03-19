@@ -31,14 +31,13 @@ pip install -r requirements.txt
 The method could be run using GUI or from a command line. Example usages are shown below for both cases.
 
 ## GUI
-### Training
-#### From scratch
+### Training from scratch
 ![network training](/imgs/full_training_example.gif)
 
-#### Transfer learning
+### Transfer learning
 ![transfer learnign](/imgs/transfer_learning_example.gif)
 
-#### Testing
+### Testing
 ![network testing](/imgs/testing_example.gif)
 
 ## Command line
